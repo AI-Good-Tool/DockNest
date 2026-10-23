@@ -1,0 +1,52 @@
+name: Release macOS arm64
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '已有版本标签，例如 v2.7.0'
+        required: true
+        type: string
+permissions:
+  contents: write
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
+      - name: Verify version and toolchain
+        run: |
+          test "$(uname -m)" = arm64
+          version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' DockFolder/Info.plist)
+          test "$RELEASE_TAG" = "v$version"
+          xcodebuild -version
+          echo "DEVELOPER_DIR=$(xcode-select -p)" >> "$GITHUB_ENV"
+      - name: Test core
+        run: zsh "scripts/test.sh"
+      - name: Package arm64 DMG
+        run: zsh "scripts/package-dmg.sh"
+      - name: Verify app architecture and plugin
+        run: |
+          test "$(lipo -archs build/Release/DockFolder.app/Contents/MacOS/DockFolder)" = arm64
+          test "$(lipo -archs build/Release/DockFolder.app/Contents/PlugIns/DockFolderTile.docktileplugin/Contents/MacOS/DockFolderTile)" = arm64
+          codesign --verify --deep --strict build/Release/DockFolder.app
+          zsh "scripts/test-dock-plugin.sh"
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "DockNest $RELEASE_TAG" --notes-file "docs/RELEASE_NOTES.md"
+          fi
+          gh release upload "$RELEASE_TAG" dist/*.dmg dist/*.sha256 --clobber
+          gh release edit "$RELEASE_TAG" --draft=false
