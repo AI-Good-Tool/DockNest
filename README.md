@@ -62,7 +62,7 @@ flowchart TD
 
 ![多开管理实拍，「AI编辑器」和「远程工具」各有一个「打开」按钮](docs/images/instances.png)
 
-![Dock 实拍，最左侧的蓝色文件夹是「远程工具」，最右侧的是「AI编辑器」](docs/images/dock-pinned.png)
+![Dock 实拍，两枚蓝色文件夹图标分别框选并标注为「远程工具」和「AI编辑器」](docs/images/dock-pinned.png)
 
 上图左端是 **「远程工具」**，右端是 **「AI编辑器」**。两个文件夹同时固定在 Dock，点击各自的图标即可打开对应的应用列表。
 
